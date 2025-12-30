@@ -61,7 +61,9 @@ export default function WeeklyCounselingScheduleForm() {
 			});
 
 			const initSlots = {};
-			res.data.list.forEach(({ counselingDate, startTime }) => {
+			const list = res.data?.list || [];
+
+			list.forEach(({ counselingDate, startTime }) => {
 				if (!initSlots[counselingDate]) initSlots[counselingDate] = [];
 				initSlots[counselingDate].push(startTime);
 			});
