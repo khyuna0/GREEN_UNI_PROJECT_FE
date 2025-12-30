@@ -1,78 +1,67 @@
 import { useEffect, useState } from 'react';
-import { getMonday, getWeekDates } from '../../../utils/DateTimeUtil';
+import { generateWeekdays } from '../../../utils/DateTimeUtil';
 import api from '../../../api/httpClient';
 import '../../../assets/css/WeeklyCounselingScheduleForm.css';
+import { isPastSlot } from '../../../utils/counselingUtil';
+import { getThisAndNextWeekStartDates } from './../../../utils/counselingUtil';
 
 const TIMES = [15, 16, 17, 18, 19];
 
+// 교수가 상담 시간 설정하는 폼
 export default function WeeklyCounselingScheduleForm() {
 	const [dates, setDates] = useState([]);
 	const [initialSlots, setInitialSlots] = useState({});
 	const [slots, setSlots] = useState({});
+	const [weekStartDate, setWeekStartDate] = useState('');
 
-	// KST 기준 Date 생성
-	const getKSTDate = (year, month, day, hour = 0, minute = 0, second = 0) => {
-		const now = new Date();
-		const utc = Date.UTC(year, month - 1, day, hour, minute, second);
-		// UTC → KST (+9시간)
-		return new Date(utc + 9 * 60 * 60 * 1000);
-	};
+	// 예약된 슬롯(reserved=true) 저장
+	// { '2025-12-23': [15, 16], ... }
+	const [reservedSlots, setReservedSlots] = useState({});
 
-	// 지난 날짜 비활성 (KST 기준)
+	// 지난 날짜 비활성 + 예약된 슬롯 비활성
 	const isDisabled = (date, time) => {
-		const now = new Date();
-		const [year, month, day] = date.split('-').map(Number);
-		const slotTime = getKSTDate(year, month, day, time);
-		return slotTime <= now;
+		const isPast = isPastSlot(date, time);
+		// 예약된 슬롯이면 수정/삭제 못 하게
+		const isReserved = reservedSlots?.[date]?.includes(time);
+		return isPast || isReserved;
 	};
 
-	// KST 기준 학년/학기 계산
-	const getSubYear = () => {
-		const now = new Date();
-		const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-		const kst = new Date(utc + 9 * 60 * 60 * 1000);
-		const month = kst.getMonth() + 1;
-		return month <= 2 ? kst.getFullYear() - 1 : kst.getFullYear();
-	};
-
-	const getSemester = () => {
-		const now = new Date();
-		const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-		const kst = new Date(utc + 9 * 60 * 60 * 1000);
-		const month = kst.getMonth() + 1;
-		return month >= 3 && month <= 8 ? 1 : 2;
-	};
-
-	/* 초기 로드 : 이번 주 + 다음 주 */
-	useEffect(() => {
-		const init = async () => {
-			const today = new Date();
-			const thisMonday = getMonday(today);
-			const nextMonday = getMonday(new Date(thisMonday.getTime() + 7 * 24 * 60 * 60 * 1000));
-
-			const thisWeek = getWeekDates(thisMonday);
-			const nextWeek = getWeekDates(nextMonday);
-
-			const allDates = [...thisWeek, ...nextWeek];
-			setDates(allDates);
-
+	// 초기 로드
+	const fetchSchedule = async (startDate) => {
+		try {
 			const res = await api.get('/counseling/professor', {
-				params: { weekStartDate: thisWeek[0] },
+				params: { weekStartDate: startDate },
 			});
 
 			const initSlots = {};
-			const list = res.data?.list || [];
+			const initReserved = {};
 
-			list.forEach(({ counselingDate, startTime }) => {
+			(res.data?.list ?? res.data).forEach(({ counselingDate, startTime, reserved }) => {
 				if (!initSlots[counselingDate]) initSlots[counselingDate] = [];
 				initSlots[counselingDate].push(startTime);
+
+				if (reserved) {
+					if (!initReserved[counselingDate]) initReserved[counselingDate] = [];
+					initReserved[counselingDate].push(startTime);
+				}
 			});
 
 			setInitialSlots(initSlots);
 			setSlots(initSlots);
-		};
+			setReservedSlots(initReserved);
+		} catch (e) {
+			console.error(e);
+			alert('상담 일정 불러오기 실패');
+		}
+	};
 
-		init();
+	useEffect(() => {
+		const mondayStr = getThisAndNextWeekStartDates();
+		setWeekStartDate(mondayStr);
+		// 2주 평일만 생성 (이번주 월~금 + 다음주 월~금)
+		const weekdaysOnly = generateWeekdays(mondayStr);
+		setDates(weekdaysOnly);
+		fetchSchedule(mondayStr);
 	}, []);
 
 	/* 체크 토글 */
@@ -96,6 +85,9 @@ export default function WeeklyCounselingScheduleForm() {
 
 		for (const date in initialSlots) {
 			for (const time of initialSlots[date]) {
+				// 예약된 슬롯은 삭제 대상에서 제외(프론트 안전장치)
+				if (reservedSlots?.[date]?.includes(time)) continue;
+
 				if (!slots[date]?.includes(time)) {
 					deleted.push({ date, time });
 				}
@@ -119,14 +111,14 @@ export default function WeeklyCounselingScheduleForm() {
 			}
 
 			await api.post('/counseling/professor', {
-				weekStartDate: dates[0], // 이번 주 월요일
+				weekStartDate,
 				slots,
-				subYear: getSubYear(),
-				semester: getSemester(),
 			});
 
 			alert('상담 일정이 저장되었습니다.');
-			setInitialSlots(slots);
+
+			// 저장 후 최신 상태 다시 로드(예약 취소 등 반영)
+			await fetchSchedule(weekStartDate);
 		} catch (e) {
 			console.error(e);
 			alert(e.response?.data?.message ?? '상담 일정 저장 실패');
