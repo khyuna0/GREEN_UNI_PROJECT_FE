@@ -212,7 +212,7 @@ export default function ProfessorAiGrade() {
 							<h4>
 								수강 인원: {stuNum}명 ({stuNum < 20 ? '절대평가' : '상대평가'})
 							</h4>
-							{stuNum >= 20 && <button onClick={calculateGrade}>전체 학생 등급 산출</button>}
+							{stuNum >= 20 && aiStatus !== 'SUCCESS' && <button onClick={calculateGrade}>전체 학생 등급 산출</button>}
 							<p>* 직접 수정한 등급도 전체 등급 재산출 시 자동 등급으로 변경됩니다.</p>
 							{/* <button onClick={() => setListOpen(false)} className="syllabus-btn">
 								내 강의 목록
