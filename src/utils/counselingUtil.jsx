@@ -1,30 +1,31 @@
-// 상담 시 필요한
-
 import { getMonday, getWeekDates } from './DateTimeUtil';
 
-// 지난 시간인지 체크하는 함수
-export const isPastSlot = (date, startTime) => {
-	const slotTime = new Date(`${date}T${String(startTime).padStart(2, '0')}:00:00`);
-	return slotTime <= new Date(); // 지금보다 과거면 true
+/**
+ * 한국 시간(KST) 기준으로 현재 시간을 가져오는 함수
+ */
+export const getKSTNow = () => {
+	const now = new Date();
+	const utc = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+	return new Date(utc + 9 * 60 * 60 * 1000);
 };
 
-// 날짜별로 그룹 만드는 함수
-// export const groupByDate = (schedules) => {
-// 	const result = {};
-// 	schedules.forEach((schedule) => {
-// 		const date = schedule.counselingDate;
-// 		if (!result[date]) result[date] = [];
-// 		result[date].push(schedule);
-// 	});
+/**
+ * 지난 시간인지 체크 (한국 시간 기준)
+ */
+export const isPastSlot = (date, startTime) => {
+	// 슬롯 시간을 Date 객체로 생성 (YYYY-MM-DDTHH:00:00)
+	const slotTime = new Date(`${date}T${String(startTime).padStart(2, '0')}:00:00`);
 
-// 	return result;
-// };
+	// 한국 현재 시간과 비교
+	return slotTime <= getKSTNow();
+};
 
-// 오늘 날짜 기준으로 weekStartDate 계산
+/**
+ * 오늘 날짜 기준으로 이번 주 월요일(weekStartDate) 계산 (한국 시간 기준)
+ */
 export const getThisAndNextWeekStartDates = () => {
-	const today = new Date();
-	console.log(today);
-	const thisMonday = getMonday(today);
-	const thisWsd = getWeekDates(thisMonday)[0];
-	return thisWsd;
+	const kstNow = getKSTNow();
+	const thisMonday = getMonday(kstNow);
+	const weekDates = getWeekDates(thisMonday);
+	return weekDates[0]; // 이번 주 월요일 YYYY-MM-DD
 };
