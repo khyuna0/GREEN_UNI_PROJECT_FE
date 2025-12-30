@@ -23,6 +23,7 @@ export const isPastSlot = (date, startTime) => {
 // 오늘 날짜 기준으로 weekStartDate 계산
 export const getThisAndNextWeekStartDates = () => {
 	const today = new Date();
+	console.log(today);
 	const thisMonday = getMonday(today);
 	const thisWsd = getWeekDates(thisMonday)[0];
 	return thisWsd;
