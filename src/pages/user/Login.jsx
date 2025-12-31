@@ -46,6 +46,7 @@ export default function Login() {
 			setToken(accessToken); // Context의 setToken 호출 -> Provider useEffect가 /auth/me 자동으로 호출
 		} catch (err) {
 			setError(err.response.data.message);
+			console.log(err.response.data.message)
 		} finally {
 			setLoading(false);
 		}
