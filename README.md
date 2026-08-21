@@ -1,22 +1,137 @@
-# React + Vite
+# 그린대학교 학사정보시스템 (Green University LMS) — 프로젝트 정리
+---
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 1. 프로젝트 개요
 
-Currently, two official plugins are available:
+- **주제**: AI 기반 학업 위험 학생 예측 및 관리가 가능한 학사정보시스템
+- **배경**: 기존 학사시스템(H2 DB, MyBatis + JSP)을 분석해 문제점을 도출하고, 최신 스택으로 리팩터링 + 신규 기능(AI 챗봇, 화상 상담, 위험 학생 분석)을 추가한 리뉴얼 프로젝트
+- **개발 기간**: 6주 (기존 서비스 분석 → 리팩터링 → 필수 기능 구현 → AI/화상상담 등 고도화 → 코드 품질 개선 → 배포/테스트)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 기존 서비스의 문제점 (분석 결과)
+| 문제 | 내용 |
+|---|---|
+| 사후 대응적 관리 | 위험 학생을 이미 자퇴/휴학 신청 후에야 인지 |
+| 단순 조회 중심 | 데이터 분석을 통한 2차적 가치 창출 서비스 부재 |
+| H2 데이터베이스 | 테스트용 DB라 실제 운영 환경에 부적합 |
+| 낮은 유지보수성 | MyBatis + JSP 기반, 코드 중복 多, 유지보수 어려움 |
 
-## React Compiler
+---
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+## 2. 기술 스택
 
-Note: This will impact Vite dev & build performances.
+### 백엔드
+- Java, Spring Boot, JPA (Apache 서버 기반)
+- IntelliJ 개발
 
-## Expanding the ESLint configuration
+### 프론트엔드 (실제 저장소 `package.json` 기준)
+- **React 19.2.0** + **Vite 7.2.4** (React Compiler, SWC/Babel 플러그인 사용)
+- **react-router-dom 7.10.0** — 라우팅
+- **@tanstack/react-query 5.90.12** — 서버 상태 관리
+- **axios 1.13.2** — HTTP 통신
+- **jwt-decode 4.0.0** — 인증(JWT) 처리
+- **swiper 12.0.3** — UI 슬라이더
+- ESLint + Prettier로 코드 품질 관리
+- 폴더 구조: `src/api`, `src/components`, `src/pages`, `src/context`, `src/hooks`, `src/utils`, `src/assets`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 데이터베이스 / 인프라
+- **MySQL** + **Amazon RDS** (기존 H2 → 운영급 DB로 전환)
+- **AWS** 배포
+- Git / GitHub 협업
 
-## Prettier Setting
+### AI
+- **Mistral AI**, **Google Gemini** — 성적/출결 데이터 분석 기반 학업 위험 학생 예측, AI 챗봇 응답 생성
 
-Install [Prettier - Code formatter] and turn ["editor.formatOnSave": true] on
+### 실시간 통신
+- **WebRTC** — 학생-교수 간 화상 상담 기능
+
+---
+
+## 3. 주요 기능 (권한별)
+
+- **공통**: 로그인/인증, 아이디·비밀번호 찾기, 공지사항, 학사일정, AI 챗봇
+- **학생**: 학적/등록금/강의 조회, 예비·본 수강신청, 성적 조회, 위험 과목 확인, 상담 예약, 화상 상담
+- **교수**: 강의 관리, 성적 입력 → AI 위험학생 자동 분석, 위험 학생 관리 및 상담 요청, 상담 일정 관리, 화상 상담
+- **교직원**: 학생/교수 계정 등록, 학사 관리(휴학 승인 등), 등록·공지·학사일정 CRUD
+
+핵심 로직 예시
+- 예비 수강신청 → 본 수강신청 전환 시: 정원 ≥ 현재인원이면 자동 신청 처리, 정원 초과 시 인원을 0으로 초기화 후 선착순 재신청
+- 성적 확정 시 AI가 출결·성적을 분석해 위험학생을 태깅하고, 담당 교수에게 상담 가이드까지 자동 생성
+- 상담 완료 처리 시 위험 학생 테이블의 `status`가 `RESOLVED`로 자동 갱신
+
+---
+
+## 4. 데이터 마이그레이션 / 기술 스택 전환
+
+이 프로젝트의 본질은 **기존 JSP + MyBatis 기반 레거시 학사관리시스템을, JPA(Spring Boot) + React(Vite) 기반 구조로 새로 마이그레이션**한 것입니다. 별도의 마이그레이션 도구(Flyway/Liquibase 등)는 사용하지 않고, 팀에서 직접 기존 기능을 분석해 재설계·재구현하는 방식으로 진행했습니다.
+
+### (1) 프레젠테이션 계층: JSP → React(Vite) SPA
+- 기존: 서버 사이드 렌더링 방식의 **JSP** 화면
+- 전환 후: **React 19 + Vite** 기반 SPA로 완전히 재작성 (`react-router-dom`으로 클라이언트 라우팅, `axios` + `@tanstack/react-query`로 API 통신/서버 상태 관리)
+- 화면 단위로 기존 JSP 페이지의 기능을 하나씩 분석해 컴포넌트로 재구현하는 방식으로 진행 (자동 변환 도구 없이 수작업 재작성)
+
+### (2) 데이터 접근 계층: MyBatis(XML 쿼리 매핑) → JPA(Spring Boot)
+- 기존: **MyBatis**로 SQL을 XML에 직접 작성해 매핑 — 코드 중복이 많고 유지보수 어려움
+- 전환 후: **Spring Boot + JPA**로 엔티티 기반 객체지향적 데이터 접근 방식으로 전환
+- 이 과정에서 기존 DB가 **복합 PK** 구조였던 것이 JPA 엔티티 매핑을 복잡하게 만드는 문제로 이어짐 → **단일 PK + 연관관계 매핑**(`@ManyToOne`, `@OneToMany` 등) 구조로 재설계 (자세한 내용은 5-3. DB 구조 항목 참고)
+
+### (3) 인프라: H2 → MySQL(AWS RDS)
+- 기존 서비스는 테스트용 **H2 인메모리 DB**를 그대로 운영에 사용 중이었음 → 실제 서비스 환경에서 데이터 영속성/동시성 문제
+- **MySQL + Amazon RDS**로 전환하여 대규모 데이터 처리 안정성 확보 및 실제 운영 환경 대응
+
+### 마이그레이션 방식 요약
+- 별도 자동화 도구 없이, 팀원들이 **기존 기능을 1차로 분석·정리 → 리팩터링 대상 정의 → JPA/React 구조로 수작업 재구현**하는 방식으로 진행 (개발 일정표의 "1주차 기존 서비스 분석 → 2주차 리팩터링/ERD·API 재설계" 흐름과 일치)
+- 데이터 자체의 이관(레거시 DB → 신규 DB로의 실제 데이터 이전)보다는, **스키마·아키텍처·프레임워크 전환**에 가까운 마이그레이션이었다는 점을 면접 시 명확히 구분해서 설명하면 좋습니다.
+
+---
+
+## 5. 트러블슈팅
+
+### 5-1. 비동기 AI 분석 처리 문제
+- **문제**: [성적 확정 → AI 분석 → 결과 저장 → 응답 반환]이 하나의 동기 흐름으로 묶여, 학생 수가 많아질수록 응답 지연 및 브라우저 블로킹 발생
+- **원인**: 모든 AI 분석이 끝날 때까지 응답을 붙잡고 있는 동기 방식의 전형적 병목
+- **해결**:
+  - `createJob`에서 요청을 받자마자 "분석 시작" 응답을 즉시 반환 (접수와 실행 분리)
+  - 실제 분석 로직은 `@Async`로 별도 스레드에서 백그라운드 처리
+  - 비동기 호출 결과를 다른 로직이 즉시 참조하지 않도록 구조를 독립시켜 데이터 충돌 방지
+- **배운 점**: 비동기 처리와 트랜잭션의 개념/범위/시점 이해. 오래 걸리는 외부 API 작업은 진행률 관리·예외 처리 로직을 분리하는 것이 안정적
+
+### 5-2. 챗봇 응답 라우팅 복잡도 문제
+- **문제**: 주제(학사일정/수강/성적/휴학/공지/상담)별 분기가 프론트·백엔드에 흩어져 로직 중복 및 라우팅 꼬임, 권한별 안내 범위 오류
+- **원인**: 화면단에서 분기 처리 → 조건문 지속 증가, 의도 분류→응답→페이지 안내 흐름이 분산되어 관리 어려움
+- **해결**:
+  - 백엔드로 분기 로직 통합
+  - 입력을 의도(intent, JSON)로 분류하고 권한(role)에 맞는 범위만 허용
+  - 응답 포맷을 `{ message, quickReplies, route }`로 표준화 → 프론트는 렌더링만 담당
+  - `PortalCatalog`로 기능을 정리해 역할별 안내를 일관되게 유지
+- **배운 점**: 분기/권한/라우팅은 서버 한 곳에 모아야 유지보수가 쉽고, 표준 응답 형식을 먼저 설계하면 기능 추가 속도가 빨라짐
+
+### 5-3. DB 구조(복합키 → 단일 PK) — [4. 데이터 마이그레이션] 참고
+
+### 5-4. WebRTC 보안 문제
+- **문제**: 로컬/HTTP 환경에서 카메라·마이크 권한 팝업이 뜨지 않아 화상 연결 불가
+- **원인**: WebRTC는 브라우저 보안 정책상 HTTPS 등 보안 컨텍스트에서만 미디어 장치 접근 권한을 요청함
+- **해결**: 방화벽 등 네트워크 설정을 점검했지만 해결되지 않았고, **HTTPS 환경으로 배포 후** 테스트하여 정상 동작 확인
+- **배운 점**: WebRTC는 네트워크 문제가 아니라 브라우저 보안 정책이 원인일 수 있으므로, 실시간 통신 기능은 개발 초기부터 HTTPS 기반 환경을 전제로 설계/테스트해야 함
+
+### 5-5. 중복 코드 문제
+- **문제**: 유사 기능의 유틸리티/비즈니스 로직이 여러 클래스에 중복 구현되어 유지보수 어려움
+- **원인**: 초기에 팀원 간 역할 분담과 공통 기능 정의가 명확하지 않아, 각자 도메인에서 개별 구현하며 로직 파편화
+- **해결**: 중복 로직을 추출해 전담 Util 클래스/공통 서비스 계층으로 통합 리팩터링, 공통화 전략 수립 및 공유 프로세스 도입
+- **배운 점**: 초기 역할 분담과 책임 정의가 코드 구조·유지보수 효율을 좌우함
+
+### 5-6. 엔티티 설계: 객체 전체 저장 vs 특정 컬럼만 저장
+- **문제**: 단순 데이터 입력 시에도 불필요한 연관 엔티티까지 함께 영속화되어 성능 저하
+- **원인**: 엔티티 전체 저장 시 연관관계가 복잡한 경우 의도치 않은 DB 부하/메모리 낭비, 이를 막기 위한 매핑 로직 비대화
+- **해결**: 목적에 따라 "객체 전체 저장"과 "선택적 컬럼 저장"을 구분, 계층 간 데이터 전달에는 DTO를 사용해 필요한 필드만 선택적으로 전달
+- **배운 점**: 기능 구현에만 급급하지 않고 인덱스 효율/연관관계 깊이가 시스템 가용성에 미치는 영향을 먼저 고려하는 성능 지향적 사고의 중요성
+
+---
+
+## 6. 자체 평가 / 배운 점
+
+- 초기 역할 분배와 책임 정의가 코드 구조·유지보수에 큰 영향을 준다는 것을 체감
+- 중복 코드 경험을 통해 공통화 전략과 전략 패턴 적용의 필요성 학습
+- 팀 협업 과정에서 소통과 코드 리뷰의 중요성 체감
+- **추후 개선점**: 단위/통합 테스트 체계화, 배포 전 검증 프로세스 강화, 요구사항·개발 과정 문서화 및 팀 공유 철저화
+- 클라이언트(팀 내 가상 요구사항) 요구사항을 정확히 이해하지 못하면 재작업이 발생할 수 있음을 경험 → 지속적 소통의 중요성
+
